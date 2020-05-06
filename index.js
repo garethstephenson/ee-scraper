@@ -1,7 +1,9 @@
 const https = require('https');
 const scrapeIt = require('scrape-it');
 const fs = require('fs');
-const { parse } = require('json2csv');
+const {
+  parse
+} = require('json2csv');
 require('dotenv').config();
 
 const hostname = 'platform.easyequities.co.za';
@@ -50,31 +52,46 @@ function getHoldingData(type, data) {
   };
 
   let className = '';
+  const props = [];
+
   switch (type) {
     case 'value':
       className = 'text-right';
-      scrapeItOptions.holdings.data.purchaseValue = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(2) > div.${className}`
-      };
-      scrapeItOptions.holdings.data.currentValue = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(3) > div.${className}`
-      };
-      scrapeItOptions.holdings.data.pnlValue = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(4) > div.${className}`
-      };
+      props.push({
+        name: 'purchaseValue',
+        index: 2
+      });
+      props.push({
+        name: 'currentValue',
+        index: 3
+      });
+      props.push({
+        name: 'pnlValue',
+        index: 4
+      });
       break;
     case 'share':
       className = 'right-value-column';
-      scrapeItOptions.holdings.data.avgPurchasePrice = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(2) > div.${className}`
-      };
-      scrapeItOptions.holdings.data.delayedPrice = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(3) > div.${className}`
-      };
-      scrapeItOptions.holdings.data.pnlPercent = {
-        selector: `div > div > div > div:nth-child(2) > div:nth-child(4) > div.${className}`
-      }
+      props.push({
+        name: 'avgPurchasePrice',
+        index: 2
+      });
+      props.push({
+        name: 'delayedPrice',
+        index: 3
+      });
+      props.push({
+        name: 'pnlPercent',
+        index: 4
+      });
       break;
+  }
+
+  const scrapeItData = scrapeItOptions.holdings.data;
+  for (const prop of props) {
+    scrapeItData[prop.name] = {
+      selector: `div > div > div > div:nth-child(2) > div:nth-child(${prop.index}) > div.${className}`
+    };
   }
   const result = scrapeIt.scrapeHTML(data, scrapeItOptions);
   return result;
