@@ -116,6 +116,10 @@ const getHoldingData = (type, data) => {
     case 'value':
       className = 'text-right';
       props.push({
+        name: 'managedPurchaseValue',
+        index: 1
+      });
+      props.push({
         name: 'purchaseValue',
         index: 2
       });
@@ -182,7 +186,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
               const trustAccountPostData = `trustAccountId=${account.id}`;
               return await request(getDefaultRequestOptions('POST', '/Menu/UpdateCurrency', cookies), trustAccountPostData);
             } else {
-              return null;
+              throw new Error(`Can't use account '${account.id}', skipping...`);
             }
           })
           .then(async () => await request(getDefaultRequestOptions(
@@ -196,7 +200,16 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
               const result = valueData.holdings.map(valueHolding => {
                 const shareHolding = shareData.holdings.find(share => share.name === valueHolding.name);
                 if (shareHolding) {
+                  // DIY shares
                   Object.assign(valueHolding, shareHolding);
+                } else {
+                  // Managed shares
+                  const pnlValue = valueHolding.currentValue;
+                  const pnlPercent = valueHolding.pnlValue;
+                  valueHolding.currentValue = valueHolding.purchaseValue;
+                  valueHolding.purchaseValue = valueHolding.managedPurchaseValue;
+                  valueHolding.pnlValue = pnlValue;
+                  valueHolding.pnlPercent = pnlPercent;
                 }
                 return valueHolding;
               });
@@ -220,8 +233,8 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
             } else {
               console.error(`No holdings found for account ${account.id}`);
             }
-
-          });
+          })
+          .catch(err => console.error(err));
       }
     });
 })();
