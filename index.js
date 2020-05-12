@@ -157,7 +157,7 @@ const getHoldingData = (type, data) => {
 
 const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
 
-const main = async () => {
+(async () => {
 
   const formData = `UserIdentifier=${username}&Password=${password}&ReturnUrl=&OneSignalGameId=`;
   request(getDefaultRequestOptions('POST', '/Account/SignIn'), formData)
@@ -224,6 +224,4 @@ const main = async () => {
           });
       }
     });
-}
-
-main();
+})();
