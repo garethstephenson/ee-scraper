@@ -1,21 +1,35 @@
+'use strict';
+
 const https = require('https');
 const scrapeIt = require('scrape-it');
 const fs = require('fs');
-const {
-  parse
-} = require('json2csv');
+const { parse } = require('json2csv');
 require('dotenv').config();
 
 const hostname = 'platform.easyequities.co.za';
 const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.132 Safari/537.36';
+const username = escape(process.env.USERNAME);
+const password = escape(process.env.PASSWORD);
+const cookies = [];
+const trustAccounts = [];
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const request = async (options, postData) => {
   if (!options) throw new Error('Options must be supplied');
+  const postHeaders = {};
+  if (postData) {
+    try {
+      JSON.parse(postData);
+      postHeaders['Content-Type'] = 'application/json';
+    } catch (e) {
+      postHeaders['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
+    }
+    postHeaders['Content-Length'] = postData.length;
+    Object.assign(options.headers, postHeaders);
+  }
   return new Promise((resolve, reject) => {
     const req = https.request(options, res => {
       if (res.statusCode !== 200 && res.statusCode !== 302) {
-        return reject(new Error(`Status code: ${res.statusCode}`));
+        reject(new Error(`Status code: ${res.statusCode}`));
       }
       const data = [];
       res.on('data', chunk => {
@@ -34,7 +48,50 @@ const request = async (options, postData) => {
   });
 };
 
-function getHoldingData(type, data) {
+const getDefaultRequestOptions = (method = 'GET', path = '/', cookies) => {
+  const options = {
+    hostname,
+    port: 443,
+    method,
+    path,
+    headers: {
+      'User-Agent': userAgent
+    }
+  };
+  if (cookies && Array.isArray(cookies)) {
+    Object.assign(options.headers, {
+      'Cookie': cookies
+    });
+  }
+  return options;
+};
+
+const getCookie = (response, cookieName) => {
+  if (response && response.headers)
+    return response.headers['set-cookie'].find(cookie => cookie.indexOf(cookieName) > -1);
+  throw new Error(`Unable to find a cookie named '${cookieName}'`);
+};
+
+const getTrustAccounts = (data) => {
+  const scrapeItOptions = {
+    accounts: {
+      listItem: '#trust-account-content',
+      data: {
+        id: {
+          selector: 'div',
+          attr: 'data-id'
+        },
+        currencyId: {
+          selector: 'div',
+          attr: 'data-tradingcurrencyid'
+        }
+      }
+    }
+  };
+  return scrapeIt.scrapeHTML(data, scrapeItOptions);
+};
+
+const getHoldingData = (type, data) => {
   const scrapeItOptions = {
     holdings: {
       listItem: `div.grid-display.row > div.grid-display > div[data-tile-type='${type}']> div#single-user-holding`,
@@ -98,159 +155,75 @@ function getHoldingData(type, data) {
   return result;
 }
 
-function getTrustAccounts(data) {
-  const scrapeItOptions = {
-    accounts: {
-      listItem: '#trust-account-content',
-      data: {
-        id: {
-          selector: 'div',
-          attr: 'data-id'
-        },
-        currencyId: {
-          selector: 'div',
-          attr: 'data-tradingcurrencyid'
-        }
-      }
-    }
-  };
-  return scrapeIt.scrapeHTML(data, scrapeItOptions);
-}
+const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
 
-function getEpochTime() {
-  return Math.round(new Date().getTime() / 1000) - 1000;
-}
+const main = async () => {
 
-function getDefaultRequestOptions(method = 'GET', path = '/', headers) {
-  const options = {
-    hostname,
-    port: 443,
-    method,
-    path,
-    headers: {
-      'User-Agent': userAgent
-    }
-  };
-  if (headers) {
-    Object.assign(options.headers, headers);
-  }
-  return options;
-}
-
-function getCookie(response, cookieName) {
-  if (response && response.headers)
-    return response.headers['set-cookie'].find(cookie => cookie.indexOf(cookieName) > -1);
-  throw new Error(`Unable to find a cookie named '${cookieName}'`);
-}
-
-(async () => {
-  try {
-    if (!process.env.USERNAME || !process.env.PASSWORD) {
-      throw new Error('You must supply a username and password in the .env file supplied');
-    }
-    const username = escape(process.env.USERNAME);
-    const password = escape(process.env.PASSWORD);
-
-    const sessionCookieOptions = getDefaultRequestOptions();
-    request(sessionCookieOptions)
-      .then(sessionCookieResponse => {
-        const sessionCookie = getCookie(sessionCookieResponse, 'ASP.NET_SessionId');
-        const serverIdCookie = getCookie(sessionCookieResponse, 'srv_id');
-        const loginFormData = `UserIdentifier=${username}&Password=${password}&ReturnUrl=&OneSignalGameId=`;
-        const easyEquitiesCookieOptions = getDefaultRequestOptions('POST', '/Account/SignIn', {
-          'Cookie': [sessionCookie, serverIdCookie],
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': loginFormData.length
-        });
-
-        request(easyEquitiesCookieOptions, loginFormData)
-          .then(easyEquitiesCookieResponse => {
-            const easyEquitiesCookie = getCookie(easyEquitiesCookieResponse, 'EasyEquities');
-            const accountOverviewOptions = getDefaultRequestOptions('GET', '/AccountOverview', {
-              'Cookie': [sessionCookie, serverIdCookie, easyEquitiesCookie]
-            });
-
-            // Get all the accounts listed in this profile
-            // -------------------------------------------
-            request(accountOverviewOptions)
-              .then(accountOverviewResponse => {
-                const trustAccounts = getTrustAccounts(accountOverviewResponse.body);
-                trustAccounts.accounts.forEach(trustAccount => {
-
-                  const canUseAccountOptions = getDefaultRequestOptions('GET',
-                    `/Menu/CanUseSelectedAccount?tradingCurrencyId=${trustAccount.currencyId}&_=${getEpochTime()}`, {
-                      'Cookie': [sessionCookie, serverIdCookie, easyEquitiesCookie]
-                    });
-
-                  // See if we can use this account
-                  // ------------------------------
-                  request(canUseAccountOptions)
-                    .then(canUseAccountResponse => {
-                      if (JSON.parse(canUseAccountResponse.body).CanUse) {
-
-                        const trustAccountPostData = `trustAccountId=${trustAccount.id}`;
-                        const updateCurrencyOptions = getDefaultRequestOptions('POST', '/Menu/UpdateCurrency', {
-                          'Cookie': [sessionCookie, serverIdCookie, easyEquitiesCookie],
-                          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                          'Content-Length': trustAccountPostData.length,
-                        });
-
-                        // Change the currency for the selected account
-                        // --------------------------------------------
-                        request(updateCurrencyOptions, trustAccountPostData)
-                          .then(updateCurrencyResponse => {
-                            const trustAccountValuationOptions = getDefaultRequestOptions('GET',
-                              `/AccountOverview/GetTrustAccountValuations?_=${getEpochTime()}`, {
-                                'Cookie': [sessionCookie, serverIdCookie, easyEquitiesCookie],
-                              });
-
-                            request(trustAccountValuationOptions)
-                              .then(trustAccountValuationResponse => {
-                                const accountOverviewHoldingsOptions = getDefaultRequestOptions('GET',
-                                  `/AccountOverview/GetHoldingsView?stockViewCategoryId=12&_=${getEpochTime()}`, {
-                                    'Cookie': [sessionCookie, serverIdCookie, easyEquitiesCookie]
-                                  });
-
-                                // This gets the holdings list in various view form factors
-                                // --------------------------------------------------------
-                                request(accountOverviewHoldingsOptions)
-                                  .then(holdingsResponse => {
-                                    const valueData = getHoldingData('value', holdingsResponse.body);
-                                    const shareData = getHoldingData('share', holdingsResponse.body)
-
-                                    if (valueData.holdings.length > 0) {
-                                      const result = valueData.holdings.map(valueHolding => {
-                                        const shareHolding = shareData.holdings.find(share => share.name === valueHolding.name);
-                                        if (shareHolding) {
-                                          Object.assign(valueHolding, shareHolding);
-                                        }
-                                        return valueHolding;
-                                      });
-
-                                      const fileName = `${trustAccount.id}-${(new Date()).toISOString().slice(0, 19).replace(/:/g,'-')}`;
-                                      fs.writeFileSync(`./data/${fileName}.json`, JSON.stringify(result), {
-                                        flag: 'w'
-                                      });
-                                      const csv = parse(result, {
-                                        fields: ['name', 'shares', 'fsrs', 'purchaseValue', 'currentValue', 'pnlValue', 'avgPurchasePrice', 'delayedPrice', 'pnlPercent'],
-                                      });
-                                      fs.writeFileSync(`./data/${fileName}.csv`, csv, {
-                                        flag: 'w'
-                                      });
-                                      console.log(`Scrapes saved to file(s) '${fileName}.json' and '${fileName}.csv'`);
-                                    } else {
-                                      console.error(`No holdings found for account ${trustAccount.id}`);
-                                    }
-                                  });
-                              });
-                          });
-                      }
-                    });
-                });
+  const formData = `UserIdentifier=${username}&Password=${password}&ReturnUrl=&OneSignalGameId=`;
+  request(getDefaultRequestOptions('POST', '/Account/SignIn'), formData)
+    .then(response =>
+      cookies.push(...[
+        getCookie(response, 'ASP.NET_SessionId'),
+        getCookie(response, 'srv_id'),
+        getCookie(response, 'EasyEquities')
+      ])
+    )
+    .then(async () => await request(getDefaultRequestOptions('GET', '/AccountOverview', cookies)))
+    .then(async response => {
+      trustAccounts.push(...getTrustAccounts(response.body).accounts);
+      for (const account of trustAccounts) {
+        await request(getDefaultRequestOptions(
+            'GET',
+            `/Menu/CanUseSelectedAccount?tradingCurrencyId=${account.currencyId}&_=${getEpochTime()}`,
+            cookies))
+          .then(async response => {
+            const canUse = JSON.parse(response.body).CanUse;
+            if (canUse) {
+              const trustAccountPostData = `trustAccountId=${account.id}`;
+              return await request(getDefaultRequestOptions('POST', '/Menu/UpdateCurrency', cookies), trustAccountPostData);
+            } else {
+              return null;
+            }
+          })
+          .then(async () => await request(getDefaultRequestOptions(
+            'GET',
+            `/AccountOverview/GetHoldingsView?stockViewCategoryId=12&_=${getEpochTime()}`,
+            cookies)))
+          .then(response => {
+            const valueData = getHoldingData('value', response.body);
+            const shareData = getHoldingData('share', response.body);
+            if (valueData.holdings.length > 0) {
+              const result = valueData.holdings.map(valueHolding => {
+                const shareHolding = shareData.holdings.find(share => share.name === valueHolding.name);
+                if (shareHolding) {
+                  Object.assign(valueHolding, shareHolding);
+                }
+                return valueHolding;
               });
+
+              if (!fs.existsSync(`./data/${account.id}`)) {
+                fs.mkdirSync(`./data/${account.id}`);
+                fs.mkdirSync(`./data/${account.id}/csv`);
+                fs.mkdirSync(`./data/${account.id}/json`);
+              }
+              const fileName = `${account.id}-${(new Date()).toISOString().slice(0, 19).replace(/:/g,'-')}`;
+              fs.writeFileSync(`./data/${account.id}/json/${fileName}.json`, JSON.stringify(result), {
+                flag: 'w'
+              });
+              const csv = parse(result, {
+                fields: ['name', 'shares', 'fsrs', 'purchaseValue', 'currentValue', 'pnlValue', 'avgPurchasePrice', 'delayedPrice', 'pnlPercent'],
+              });
+              fs.writeFileSync(`./data/${account.id}/csv/${fileName}.csv`, csv, {
+                flag: 'w'
+              });
+              console.log(`Scrapes saved to file(s) '${fileName}.json' and '${fileName}.csv'`);
+            } else {
+              console.error(`No holdings found for account ${account.id}`);
+            }
+
           });
-      });
-  } catch (err) {
-    console.error(err);
-  }
-})();
+      }
+    });
+}
+
+main();
