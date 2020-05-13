@@ -19,7 +19,7 @@ const request = async (options, postData) => {
   if (postData) {
     try {
       JSON.parse(postData);
-      postHeaders['Content-Type'] = 'application/json';
+      postHeaders['Content-Type'] = 'application/json; charset=UTF-8';
     } catch (e) {
       postHeaders['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
     }
@@ -201,6 +201,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
                 const shareHolding = shareData.holdings.find(share => share.name === valueHolding.name);
                 if (shareHolding) {
                   // DIY shares
+                  delete valueHolding.managedPurchaseValue;
                   Object.assign(valueHolding, shareHolding);
                 } else {
                   // Managed shares
