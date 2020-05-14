@@ -226,7 +226,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
                 fs.mkdirSync(`${dataDir}/${account.id}/json`);
               }
 
-              const fileDateTime = moment().format('YYYYMMDDTHHmmSS');
+              const fileDateTime = moment().format('YYYYMMDDTHHmmss');
               const fileName = `${account.id}-${fileDateTime}`;
               fs.writeFileSync(`${dataDir}/${account.id}/json/${fileName}.json`, JSON.stringify(result), {
                 flag: 'w'
