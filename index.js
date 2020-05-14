@@ -3,13 +3,18 @@
 const https = require('https');
 const scrapeIt = require('scrape-it');
 const fs = require('fs');
+const moment = require('moment');
 const { parse } = require('json2csv');
+
+process.chdir(__dirname);
+
 require('dotenv').config();
 
 const hostname = 'platform.easyequities.co.za';
 const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.132 Safari/537.36';
-const username = escape(process.env.USERNAME);
-const password = escape(process.env.PASSWORD);
+const username = escape(process.env.EEUSERNAME);
+const password = escape(process.env.EEPASSWORD);
+const dataDir = process.env.EEDATADIR;
 const cookies = [];
 const trustAccounts = [];
 
@@ -215,19 +220,21 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
                 return valueHolding;
               });
 
-              if (!fs.existsSync(`./data/${account.id}`)) {
-                fs.mkdirSync(`./data/${account.id}`);
-                fs.mkdirSync(`./data/${account.id}/csv`);
-                fs.mkdirSync(`./data/${account.id}/json`);
+              if (!fs.existsSync(`${dataDir}/${account.id}`)) {
+                fs.mkdirSync(`${dataDir}/${account.id}`);
+                fs.mkdirSync(`${dataDir}/${account.id}/csv`);
+                fs.mkdirSync(`${dataDir}/${account.id}/json`);
               }
-              const fileName = `${account.id}-${(new Date()).toISOString().slice(0, 19).replace(/:/g,'-')}`;
-              fs.writeFileSync(`./data/${account.id}/json/${fileName}.json`, JSON.stringify(result), {
+
+              const fileDateTime = moment().format('YYYYMMDDTHHmmSS');
+              const fileName = `${account.id}-${fileDateTime}`;
+              fs.writeFileSync(`${dataDir}/${account.id}/json/${fileName}.json`, JSON.stringify(result), {
                 flag: 'w'
               });
               const csv = parse(result, {
                 fields: ['name', 'shares', 'fsrs', 'purchaseValue', 'currentValue', 'pnlValue', 'avgPurchasePrice', 'delayedPrice', 'pnlPercent'],
               });
-              fs.writeFileSync(`./data/${account.id}/csv/${fileName}.csv`, csv, {
+              fs.writeFileSync(`${dataDir}/${account.id}/csv/${fileName}.csv`, csv, {
                 flag: 'w'
               });
               console.log(`Scrapes saved to file(s) '${fileName}.json' and '${fileName}.csv'`);

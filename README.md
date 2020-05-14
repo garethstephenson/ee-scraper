@@ -4,8 +4,9 @@ A screen scraper for EasyEquities.
 ## Configuration
 Make a .env file with the following settings in the root of the application.
 ```
-USERNAME=<your easyequities username>
-PASSWORD=<your easyequities password>
+EEUSERNAME=<your easyequities username>
+EEPASSWORD=<your easyequities password>
+EEDATADIR=<directory to save the files>
 ```
 
 ## Running the application
