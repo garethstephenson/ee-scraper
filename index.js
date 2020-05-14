@@ -206,7 +206,6 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
                 const shareHolding = shareData.holdings.find(share => share.name === valueHolding.name);
                 if (shareHolding) {
                   // DIY shares
-                  delete valueHolding.managedPurchaseValue;
                   Object.assign(valueHolding, shareHolding);
                 } else {
                   // Managed shares
@@ -217,6 +216,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
                   valueHolding.pnlValue = pnlValue;
                   valueHolding.pnlPercent = pnlPercent;
                 }
+                delete valueHolding.managedPurchaseValue;
                 return valueHolding;
               });
 
