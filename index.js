@@ -244,5 +244,6 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
           })
           .catch(err => console.error(err));
       }
-    });
+    })
+    .catch(err => console.error(err));
 })();
