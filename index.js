@@ -9,6 +9,7 @@ const { parse } = require('json2csv');
 process.chdir(__dirname);
 
 require('dotenv').config();
+require('log-timestamp')(() => `[${moment().format('YYYY-MM-DD HH:mm:ss.SSS')}]`);
 
 const hostname = 'platform.easyequities.co.za';
 const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.132 Safari/537.36';
