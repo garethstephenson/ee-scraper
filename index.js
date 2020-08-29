@@ -11,7 +11,7 @@ process.chdir(__dirname);
 require('dotenv').config();
 require('log-timestamp')(() => `[${moment().format('YYYY-MM-DD HH:mm:ss.SSS')}]`);
 
-const hostname = 'platform.easyequities.co.za';
+const hostname = process.env.EEURL;
 const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.132 Safari/537.36';
 const username = escape(process.env.EEUSERNAME);
 const password = escape(process.env.EEPASSWORD);
