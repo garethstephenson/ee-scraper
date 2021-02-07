@@ -187,6 +187,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
             `/Menu/CanUseSelectedAccount?tradingCurrencyId=${account.currencyId}&_=${getEpochTime()}`,
             cookies))
           .then(async response => {
+            if (response.statusCode !== 200) return;
             const canUse = JSON.parse(response.body).CanUse;
             if (canUse) {
               const trustAccountPostData = `trustAccountId=${account.id}`;
