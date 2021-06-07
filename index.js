@@ -100,7 +100,7 @@ const getTrustAccounts = (data) => {
 const getHoldingData = (type, data) => {
   const scrapeItOptions = {
     holdings: {
-      listItem: `div.grid-display.row > div.grid-display > div[data-tile-type='${type}']> div#single-user-holding`,
+      listItem: `div.holdings-group div.grid-display > div[data-tile-type='${type}'] > div#single-user-holding`,
       data: {
         name: {
           selector: 'div.stock-name'
