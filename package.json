@@ -13,7 +13,7 @@
     "dotenv": "^8.2.0",
     "json2csv": "^5.0.1",
     "log-timestamp": "^0.3.0",
-    "moment": "^2.25.3",
+    "moment": "^2.29.2",
     "scrape-it": "^5.2.3"
   }
 }
