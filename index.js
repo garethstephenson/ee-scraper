@@ -151,7 +151,7 @@ const getEpochTime = () => Math.round(new Date().getTime() / 1000) - 1000;
 
     const parsedHoldingsView = parse(holdingsView.body);
     const holdingsCells = parsedHoldingsView.querySelectorAll(
-      "div.holding-table-body > div > div > div.holding-inner-container"
+      "div.holding-table-body > div.table-display"
     );
 
     if (holdingsCells.length > 0) {
