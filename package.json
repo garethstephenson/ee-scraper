@@ -14,7 +14,7 @@
     "html-entities": "^2.3.3",
     "json2csv": "^5.0.1",
     "log-timestamp": "^0.3.0",
-    "moment": "^2.25.3",
+    "moment": "^2.31.0",
     "node-html-parser": "^5.3.3"
   }
 }
